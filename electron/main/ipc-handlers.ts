@@ -1554,18 +1554,18 @@ function registerDeviceOAuthHandlers(mainWindow: BrowserWindow): void {
       region?: 'global' | 'cn',
       options?: { accountId?: string; label?: string },
     ) => {
-    try {
-      logger.info(`provider:requestOAuth for ${provider}`);
-      if (provider === 'google') {
-        await browserOAuthManager.startFlow(provider, options);
-      } else {
-        await deviceOAuthManager.startFlow(provider, region, options);
+      try {
+        logger.info(`provider:requestOAuth for ${provider}`);
+        if (provider === 'google') {
+          await browserOAuthManager.startFlow(provider, options);
+        } else {
+          await deviceOAuthManager.startFlow(provider, region, options);
+        }
+        return { success: true };
+      } catch (error) {
+        logger.error('provider:requestOAuth failed', error);
+        return { success: false, error: String(error) };
       }
-      return { success: true };
-    } catch (error) {
-      logger.error('provider:requestOAuth failed', error);
-      return { success: false, error: String(error) };
-    }
     },
   );
 
