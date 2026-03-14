@@ -162,7 +162,7 @@ const MODULE_PATCHES = {
 };
 
 function patchBrokenModules(nodeModulesDir) {
-  const { writeFileSync } = require('fs');
+  const { writeFileSync, readFileSync } = require('fs');
   let count = 0;
   for (const [rel, content] of Object.entries(MODULE_PATCHES)) {
     const target = join(nodeModulesDir, rel);
