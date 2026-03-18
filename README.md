@@ -41,7 +41,7 @@
 
 Whether you're automating workflows, managing AI-powered channels, or scheduling intelligent tasks, ClawX provides the interface you need to harness AI agents effectively.
 
-ClawX comes pre-configured with best-practice model providers and natively supports Windows as well as multi-language settings. Of course, you can also fine-tune advanced configurations via **Settings → Advanced → Developer Mode**.
+ClawX-Moyu comes pre-configured for the Moyu provider and natively supports Windows as well as multi-language settings. Advanced provider details remain available through **Settings → Advanced → Developer Mode** when needed.
 
 ---
 ## Screenshot
@@ -81,7 +81,7 @@ Building AI agents shouldn't require mastering the command line. ClawX was desig
 | Complex CLI setup | One-click installation with guided setup wizard |
 | Configuration files | Visual settings with real-time validation |
 | Process management | Automatic gateway lifecycle management |
-| Multiple AI providers | Unified provider configuration panel |
+| AI provider setup | Built-in Moyu provider with guided API key configuration |
 | Skill/plugin installation | Built-in skill marketplace and management |
 
 ### OpenClaw Inside
@@ -119,7 +119,7 @@ Environment variables for bundled search skills:
 - `find-skills` and `self-improving-agent` do not require API keys
 
 ### 🔐 Secure Provider Integration
-Connect to multiple AI providers (OpenAI, Anthropic, and more) with credentials stored securely in your system's native keychain. OpenAI supports both API key and browser OAuth (Codex subscription) sign-in.
+ClawX-Moyu is preconfigured for the Moyu provider. Your API key is stored securely in your system's native keychain, while advanced provider tuning remains available through Developer Mode.
 
 ### 🌙 Adaptive Theming
 Light mode, dark mode, or system-synchronized themes. ClawX adapts to your preferences automatically.
@@ -161,7 +161,7 @@ pnpm dev
 When you launch ClawX for the first time, the **Setup Wizard** will guide you through:
 
 1. **Language & Region** – Configure your preferred locale
-2. **AI Provider** – Add providers with API keys or OAuth (for providers that support browser/device login)
+2. **AI Provider** – Enter your Moyu API key in the preconfigured provider flow
 3. **Skill Bundles** – Select pre-configured skills for common use cases
 4. **Verification** – Test your configuration before entering the main interface
 
