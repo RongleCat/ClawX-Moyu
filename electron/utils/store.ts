@@ -15,7 +15,7 @@ let settingsStoreInstance: any = null;
  * Generate a random token for gateway authentication
  */
 function generateToken(): string {
-  return `clawx-${randomBytes(16).toString('hex')}`;
+  return `onekeyclaw-${randomBytes(16).toString('hex')}`;
 }
 
 /**
@@ -95,7 +95,7 @@ function createDefaultSettings(): AppSettings {
 
     // Update
     updateChannel: 'stable',
-    autoCheckUpdate: true,
+    autoCheckUpdate: false,
     autoDownloadUpdate: false,
     skippedVersions: [],
 

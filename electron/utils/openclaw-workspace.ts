@@ -29,7 +29,7 @@ async function ensureDir(dir: string): Promise<void> {
 // ── Pure helpers (no I/O) ────────────────────────────────────────
 
 /**
- * Merge a ClawX context section into an existing file's content.
+ * Merge a OneKeyClaw context section into an existing file's content.
  * If markers already exist, replaces the section in-place.
  * Otherwise appends it at the end.
  */
@@ -94,7 +94,7 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
 // ── Bootstrap file repair ────────────────────────────────────────
 
 /**
- * Detect and remove bootstrap .md files that contain only ClawX markers
+ * Detect and remove bootstrap .md files that contain only OneKeyClaw markers
  * with no meaningful OpenClaw content outside them.
  */
 export async function repairClawXOnlyBootstrapFiles(): Promise<void> {
@@ -126,9 +126,9 @@ export async function repairClawXOnlyBootstrapFiles(): Promise<void> {
       if (before === '' && after === '') {
         try {
           await unlink(filePath);
-          logger.info(`Removed ClawX-only bootstrap file for re-seeding: ${file} (${workspaceDir})`);
+          logger.info(`Removed OneKeyClaw-only bootstrap file for re-seeding: ${file} (${workspaceDir})`);
         } catch {
-          logger.warn(`Failed to remove ClawX-only bootstrap file: ${filePath}`);
+          logger.warn(`Failed to remove OneKeyClaw-only bootstrap file: ${filePath}`);
         }
       }
     }
@@ -138,20 +138,20 @@ export async function repairClawXOnlyBootstrapFiles(): Promise<void> {
 // ── Context merging ──────────────────────────────────────────────
 
 /**
- * Merge ClawX context snippets into workspace bootstrap files that
+ * Merge OneKeyClaw context snippets into workspace bootstrap files that
  * already exist on disk.  Returns the number of target files that were
  * skipped because they don't exist yet.
  */
 async function mergeClawXContextOnce(): Promise<number> {
   const contextDir = join(getResourcesDir(), 'context');
   if (!(await fileExists(contextDir))) {
-    logger.debug('ClawX context directory not found, skipping context merge');
+    logger.debug('OneKeyClaw context directory not found, skipping context merge');
     return 0;
   }
 
   let files: string[];
   try {
-    files = (await readdir(contextDir)).filter((f) => f.endsWith('.clawx.md'));
+    files = (await readdir(contextDir)).filter((f) => f.endsWith('.onekeyclaw.md'));
   } catch {
     return 0;
   }
@@ -163,7 +163,7 @@ async function mergeClawXContextOnce(): Promise<number> {
     await ensureDir(workspaceDir);
 
     for (const file of files) {
-      const targetName = file.replace('.clawx.md', '.md');
+      const targetName = file.replace('.onekeyclaw.md', '.md');
       const targetPath = join(workspaceDir, targetName);
 
       if (!(await fileExists(targetPath))) {
@@ -178,7 +178,7 @@ async function mergeClawXContextOnce(): Promise<number> {
       const merged = mergeClawXSection(existing, section);
       if (merged !== existing) {
         await writeFile(targetPath, merged, 'utf-8');
-        logger.info(`Merged ClawX context into ${targetName} (${workspaceDir})`);
+        logger.info(`Merged OneKeyClaw context into ${targetName} (${workspaceDir})`);
       }
     }
   }
@@ -190,7 +190,7 @@ const RETRY_INTERVAL_MS = 2000;
 const MAX_RETRIES = 15;
 
 /**
- * Ensure ClawX context snippets are merged into the openclaw workspace
+ * Ensure OneKeyClaw context snippets are merged into the openclaw workspace
  * bootstrap files.
  */
 export async function ensureClawXContext(): Promise<void> {
@@ -201,11 +201,11 @@ export async function ensureClawXContext(): Promise<void> {
     await new Promise((r) => setTimeout(r, RETRY_INTERVAL_MS));
     skipped = await mergeClawXContextOnce();
     if (skipped === 0) {
-      logger.info(`ClawX context merge completed after ${attempt} retry(ies)`);
+      logger.info(`OneKeyClaw context merge completed after ${attempt} retry(ies)`);
       return;
     }
-    logger.debug(`ClawX context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`);
+    logger.debug(`OneKeyClaw context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`);
   }
 
-  logger.warn(`ClawX context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`);
+  logger.warn(`OneKeyClaw context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`);
 }

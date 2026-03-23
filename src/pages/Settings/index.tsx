@@ -69,10 +69,6 @@ export function Settings() {
     setProxyHttpsServer,
     setProxyAllServer,
     setProxyBypassRules,
-    autoCheckUpdate,
-    setAutoCheckUpdate,
-    autoDownloadUpdate,
-    setAutoDownloadUpdate,
     devModeUnlocked,
     setDevModeUnlocked,
     telemetryEnabled,
@@ -81,7 +77,6 @@ export function Settings() {
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
   const currentVersion = useUpdateStore((state) => state.currentVersion);
-  const updateSetAutoDownload = useUpdateStore((state) => state.setAutoDownload);
   const [controlUiInfo, setControlUiInfo] = useState<ControlUiInfo | null>(null);
   const [openclawCliCommand, setOpenclawCliCommand] = useState('');
   const [openclawCliError, setOpenclawCliError] = useState<string | null>(null);
@@ -1013,35 +1008,6 @@ export function Settings() {
             </h2>
             <div className="space-y-6">
               <UpdateSettings />
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('updates.autoCheck')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('updates.autoCheckDesc')}
-                  </p>
-                </div>
-                <Switch
-                  checked={autoCheckUpdate}
-                  onCheckedChange={setAutoCheckUpdate}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('updates.autoDownload')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('updates.autoDownloadDesc')}
-                  </p>
-                </div>
-                <Switch
-                  checked={autoDownloadUpdate}
-                  onCheckedChange={(value) => {
-                    setAutoDownloadUpdate(value);
-                    updateSetAutoDownload(value);
-                  }}
-                />
-              </div>
             </div>
           </div>
 

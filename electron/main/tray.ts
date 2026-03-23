@@ -57,7 +57,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
   tray = new Tray(icon);
   
   // Set tooltip
-  tray.setToolTip('ClawX - AI Assistant');
+  tray.setToolTip('OneKeyClaw - AI Assistant');
   
   const showWindow = () => {
     if (mainWindow.isDestroyed()) return;
@@ -68,7 +68,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
   // Create context menu
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Show ClawX',
+      label: 'Show OneKeyClaw',
       click: showWindow,
     },
     {
@@ -112,17 +112,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
       type: 'separator',
     },
     {
-      label: 'Check for Updates...',
-      click: () => {
-        if (mainWindow.isDestroyed()) return;
-        mainWindow.webContents.send('update:check');
-      },
-    },
-    {
-      type: 'separator',
-    },
-    {
-      label: 'Quit ClawX',
+      label: 'Quit OneKeyClaw',
       click: () => {
         app.quit();
       },
@@ -157,7 +147,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
  */
 export function updateTrayStatus(status: string): void {
   if (tray) {
-    tray.setToolTip(`ClawX - ${status}`);
+    tray.setToolTip(`OneKeyClaw - ${status}`);
   }
 }
 
