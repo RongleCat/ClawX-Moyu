@@ -10,13 +10,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const ICONS_DIR = path.join(PROJECT_ROOT, 'resources', 'icons');
+const PNG_SOURCE = path.join(ICONS_DIR, 'icon.png');
 const SVG_SOURCE = path.join(ICONS_DIR, 'icon.svg');
+const MASTER_SOURCE = fs.existsSync(PNG_SOURCE) ? PNG_SOURCE : SVG_SOURCE;
 
 echo`🎨 Generating OneKeyClaw icons using Node.js...`;
 
-// Check if SVG source exists
-if (!fs.existsSync(SVG_SOURCE)) {
-  echo`❌ SVG source not found: ${SVG_SOURCE}`;
+// Check if a source icon exists
+if (!fs.existsSync(MASTER_SOURCE)) {
+  echo`❌ Icon source not found: ${MASTER_SOURCE}`;
   process.exit(1);
 }
 
@@ -25,8 +27,8 @@ await fs.ensureDir(ICONS_DIR);
 
 try {
   // 1. Generate Master PNG Buffer (1024x1024)
-  echo`  Processing SVG source...`;
-  const masterPngBuffer = await sharp(SVG_SOURCE)
+  echo`  Processing icon source: ${path.basename(MASTER_SOURCE)}...`;
+  const masterPngBuffer = await sharp(MASTER_SOURCE)
     .resize(1024, 1024)
     .png() // Ensure it's PNG
     .toBuffer();
@@ -80,8 +82,10 @@ try {
   // 5. Generate macOS Tray Icon Template
   echo`📍 Generating macOS tray icon template...`;
   const TRAY_SVG_SOURCE = path.join(ICONS_DIR, 'tray-icon-template.svg');
-  
-  if (fs.existsSync(TRAY_SVG_SOURCE)) {
+
+  if (fs.existsSync(path.join(ICONS_DIR, 'tray-icon-Template.png'))) {
+    echo`  ✅ Keeping existing tray-icon-Template.png`;
+  } else if (fs.existsSync(TRAY_SVG_SOURCE)) {
     await sharp(TRAY_SVG_SOURCE)
       .resize(22, 22)
       .png()

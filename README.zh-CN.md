@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="src/assets/logo.svg" width="128" height="128" alt="OneKeyClaw Logo" />
+  <img src="src/assets/logo.png" width="128" height="128" alt="OneKeyClaw Logo" />
 </p>
 
 <h1 align="center">OneKeyClaw</h1>

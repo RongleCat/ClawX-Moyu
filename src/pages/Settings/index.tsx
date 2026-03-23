@@ -449,7 +449,7 @@ export function Settings() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1 className="page-hero-title mb-3">
               {t('title')}
             </h1>
             <p className="text-[17px] text-foreground/70 font-medium">
@@ -463,7 +463,7 @@ export function Settings() {
 
           {/* Appearance */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="page-section-title mb-6">
               {t('appearance.title')}
             </h2>
             <div className="space-y-6">
@@ -530,7 +530,7 @@ export function Settings() {
 
           {/* Gateway */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="page-section-title mb-6">
               {t('gateway.title')}
             </h2>
             <div className="space-y-6">
@@ -634,7 +634,7 @@ export function Settings() {
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div>
-                <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                <h2 className="page-section-title mb-6">
                   {t('developer.title')}
                 </h2>
                 <div className="space-y-8">
@@ -1003,7 +1003,7 @@ export function Settings() {
 
           {/* Updates */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="page-section-title mb-6">
               {t('updates.title')}
             </h2>
             <div className="space-y-6">
@@ -1015,7 +1015,7 @@ export function Settings() {
 
           {/* About */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="page-section-title mb-6">
               {t('about.title')}
             </h2>
             <div className="space-y-3 text-[14px] text-muted-foreground">
@@ -1027,21 +1027,21 @@ export function Settings() {
               <div className="flex gap-4 pt-3">
                 <Button
                   variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
+                  className="h-auto p-0 text-[14px] text-primary hover:text-primary/80 font-medium"
                   onClick={() => window.electron.openExternal('https://claw-x.com')}
                 >
                   {t('about.docs')}
                 </Button>
                 <Button
                   variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
+                  className="h-auto p-0 text-[14px] text-primary hover:text-primary/80 font-medium"
                   onClick={() => window.electron.openExternal('https://github.com/ValueCell-ai/ClawX')}
                 >
                   {t('about.github')}
                 </Button>
                 <Button
                   variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
+                  className="h-auto p-0 text-[14px] text-primary hover:text-primary/80 font-medium"
                   onClick={() => window.electron.openExternal('https://icnnp7d0dymg.feishu.cn/wiki/UyfOwQ2cAiJIP6kqUW8cte5Bnlc')}
                 >
                   {t('about.faq')}
