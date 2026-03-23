@@ -1,17 +1,32 @@
 import { app } from 'electron';
 import path from 'path';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync, cpSync, mkdirSync, rmSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
+
+function fsPath(filePath: string): string {
+  if (process.platform !== 'win32') return filePath;
+  if (!filePath) return filePath;
+  if (filePath.startsWith('\\\\?\\')) return filePath;
+  const windowsPath = filePath.replace(/\//g, '\\');
+  if (!path.win32.isAbsolute(windowsPath)) return windowsPath;
+  if (windowsPath.startsWith('\\\\')) {
+    return `\\\\?\\UNC\\${windowsPath.slice(2)}`;
+  }
+  return `\\\\?\\${windowsPath}`;
+}
 import { getAllSettings } from '../utils/store';
 import { getApiKey, getDefaultProvider, getProvider } from '../utils/secure-storage';
 import { getProviderEnvVar, getKeyableProviderTypes } from '../utils/provider-registry';
 import { getOpenClawDir, getOpenClawEntryPath, isOpenClawPresent } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
-import { listConfiguredChannels } from '../utils/channel-config';
-import { syncGatewayTokenToConfig, syncBrowserConfigToOpenClaw, sanitizeOpenClawConfig } from '../utils/openclaw-auth';
+import { cleanupDanglingWeChatPluginState, listConfiguredChannels } from '../utils/channel-config';
+import { syncGatewayTokenToConfig, syncBrowserConfigToOpenClaw, syncSessionIdleMinutesToOpenClaw, sanitizeOpenClawConfig } from '../utils/openclaw-auth';
 import { buildProxyEnv, resolveProxySettings } from '../utils/proxy';
 import { syncProxyConfigToOpenClaw } from '../utils/openclaw-proxy';
 import { logger } from '../utils/logger';
 import { prependPathEntry } from '../utils/env-path';
+import { copyPluginFromNodeModules, fixupPluginManifest } from '../utils/plugin-install';
 
 export interface GatewayLaunchContext {
   appSettings: Awaited<ReturnType<typeof getAllSettings>>;
@@ -26,15 +41,123 @@ export interface GatewayLaunchContext {
   channelStartupSummary: string;
 }
 
+// ── Auto-upgrade bundled plugins on startup ──────────────────────
+
+const CHANNEL_PLUGIN_MAP: Record<string, { dirName: string; npmName: string }> = {
+  dingtalk: { dirName: 'dingtalk', npmName: '@soimy/dingtalk' },
+  wecom: { dirName: 'wecom', npmName: '@wecom/wecom-openclaw-plugin' },
+  feishu: { dirName: 'feishu-openclaw-plugin', npmName: '@larksuite/openclaw-lark' },
+  qqbot: { dirName: 'qqbot', npmName: '@sliverp/qqbot' },
+  'openclaw-weixin': { dirName: 'openclaw-weixin', npmName: '@tencent-weixin/openclaw-weixin' },
+};
+
+function readPluginVersion(pkgJsonPath: string): string | null {
+  try {
+    const raw = readFileSync(fsPath(pkgJsonPath), 'utf-8');
+    const parsed = JSON.parse(raw) as { version?: string };
+    return parsed.version ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function buildBundledPluginSources(pluginDirName: string): string[] {
+  return app.isPackaged
+    ? [
+      join(process.resourcesPath, 'openclaw-plugins', pluginDirName),
+      join(process.resourcesPath, 'app.asar.unpacked', 'build', 'openclaw-plugins', pluginDirName),
+      join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', pluginDirName),
+    ]
+    : [
+      join(app.getAppPath(), 'build', 'openclaw-plugins', pluginDirName),
+      join(process.cwd(), 'build', 'openclaw-plugins', pluginDirName),
+    ];
+}
+
+/**
+ * Auto-upgrade all configured channel plugins before Gateway start.
+ * - Packaged mode: uses bundled plugins from resources/ (includes deps)
+ * - Dev mode: falls back to node_modules/ with pnpm-aware dep collection
+ */
+function ensureConfiguredPluginsUpgraded(configuredChannels: string[]): void {
+  for (const channelType of configuredChannels) {
+    const pluginInfo = CHANNEL_PLUGIN_MAP[channelType];
+    if (!pluginInfo) continue;
+    const { dirName, npmName } = pluginInfo;
+
+    const targetDir = join(homedir(), '.openclaw', 'extensions', dirName);
+    const targetManifest = join(targetDir, 'openclaw.plugin.json');
+    const isInstalled = existsSync(fsPath(targetManifest));
+    const installedVersion = isInstalled ? readPluginVersion(join(targetDir, 'package.json')) : null;
+
+    // Try bundled sources first (packaged mode or if bundle-plugins was run)
+    const bundledSources = buildBundledPluginSources(dirName);
+    const bundledDir = bundledSources.find((dir) => existsSync(fsPath(join(dir, 'openclaw.plugin.json'))));
+
+    if (bundledDir) {
+      const sourceVersion = readPluginVersion(join(bundledDir, 'package.json'));
+      // Install or upgrade if version differs or plugin not installed
+      if (!isInstalled || (sourceVersion && installedVersion && sourceVersion !== installedVersion)) {
+        logger.info(`[plugin] ${isInstalled ? 'Auto-upgrading' : 'Installing'} ${channelType} plugin${isInstalled ? `: ${installedVersion} → ${sourceVersion}` : `: ${sourceVersion}`} (bundled)`);
+        try {
+          mkdirSync(fsPath(join(homedir(), '.openclaw', 'extensions')), { recursive: true });
+          rmSync(fsPath(targetDir), { recursive: true, force: true });
+          cpSync(fsPath(bundledDir), fsPath(targetDir), { recursive: true, dereference: true });
+          fixupPluginManifest(targetDir);
+        } catch (err) {
+          logger.warn(`[plugin] Failed to ${isInstalled ? 'auto-upgrade' : 'install'} ${channelType} plugin:`, err);
+        }
+      }
+      continue;
+    }
+
+    // Dev mode fallback: copy from node_modules/ with pnpm dep resolution
+    if (!app.isPackaged) {
+      const npmPkgPath = join(process.cwd(), 'node_modules', ...npmName.split('/'));
+      if (!existsSync(fsPath(join(npmPkgPath, 'openclaw.plugin.json')))) continue;
+      const sourceVersion = readPluginVersion(join(npmPkgPath, 'package.json'));
+      if (!sourceVersion) continue;
+      // Skip only if installed AND same version
+      if (isInstalled && installedVersion && sourceVersion === installedVersion) continue;
+
+      logger.info(`[plugin] ${isInstalled ? 'Auto-upgrading' : 'Installing'} ${channelType} plugin${isInstalled ? `: ${installedVersion} → ${sourceVersion}` : `: ${sourceVersion}`} (dev/node_modules)`);
+      try {
+        mkdirSync(fsPath(join(homedir(), '.openclaw', 'extensions')), { recursive: true });
+        copyPluginFromNodeModules(npmPkgPath, targetDir, npmName);
+        fixupPluginManifest(targetDir);
+      } catch (err) {
+        logger.warn(`[plugin] Failed to ${isInstalled ? 'auto-upgrade' : 'install'} ${channelType} plugin from node_modules:`, err);
+      }
+    }
+  }
+}
+
+// ── Pre-launch sync ──────────────────────────────────────────────
+
 export async function syncGatewayConfigBeforeLaunch(
   appSettings: Awaited<ReturnType<typeof getAllSettings>>,
 ): Promise<void> {
-  await syncProxyConfigToOpenClaw(appSettings);
+  await syncProxyConfigToOpenClaw(appSettings, { preserveExistingWhenDisabled: true });
 
   try {
     await sanitizeOpenClawConfig();
   } catch (err) {
     logger.warn('Failed to sanitize openclaw.json:', err);
+  }
+
+  try {
+    await cleanupDanglingWeChatPluginState();
+  } catch (err) {
+    logger.warn('Failed to clean dangling WeChat plugin state before launch:', err);
+  }
+
+  // Auto-upgrade installed plugins before Gateway starts so that
+  // the plugin manifest ID matches what sanitize wrote to the config.
+  try {
+    const configuredChannels = await listConfiguredChannels();
+    ensureConfiguredPluginsUpgraded(configuredChannels);
+  } catch (err) {
+    logger.warn('Failed to auto-upgrade plugins:', err);
   }
 
   try {
@@ -47,6 +170,12 @@ export async function syncGatewayConfigBeforeLaunch(
     await syncBrowserConfigToOpenClaw();
   } catch (err) {
     logger.warn('Failed to sync browser config to openclaw.json:', err);
+  }
+
+  try {
+    await syncSessionIdleMinutesToOpenClaw();
+  } catch (err) {
+    logger.warn('Failed to sync session idle minutes to openclaw.json:', err);
   }
 }
 
