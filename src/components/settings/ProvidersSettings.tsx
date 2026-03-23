@@ -43,6 +43,7 @@ import {
   hasConfiguredCredentials,
   type ProviderListItem,
 } from '@/lib/provider-accounts';
+import { isMoyuMode } from '@/lib/provider-mode';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -96,6 +97,10 @@ function getAuthModeLabel(
     default:
       return authMode;
   }
+}
+
+function getCustomProviderLabel(fallback: string): string {
+  return isMoyuMode() ? '魔芋' : fallback;
 }
 
 export function ProvidersSettings() {
@@ -189,7 +194,10 @@ export function ProvidersSettings() {
         <h2 className="page-section-title">
           {t('aiProviders.title', 'AI Providers')}
         </h2>
-        {/* 魔芋专属版：隐藏添加提供商按钮 */}
+        <Button onClick={() => setShowAddDialog(true)} className="rounded-full px-5 h-9 shadow-none font-medium text-[13px]">
+          <Plus className="h-4 w-4 mr-2" />
+          {t('aiProviders.add')}
+        </Button>
       </div>
 
       {loading ? (
@@ -445,7 +453,11 @@ function ProviderCard({
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 text-[13px] text-muted-foreground">
-              <span className="capitalize">{account.vendorId === 'custom' ? '魔芋' : (vendor?.name || account.vendorId)}</span>
+              <span className="capitalize">
+                {account.vendorId === 'custom'
+                  ? getCustomProviderLabel(vendor?.name || account.vendorId)
+                  : (vendor?.name || account.vendorId)}
+              </span>
               <span className="w-1 h-1 rounded-full bg-black/20 dark:bg-white/20" />
               <span>{getAuthModeLabel(account.authMode, t)}</span>
               {account.model && (
@@ -534,8 +546,9 @@ function ProviderCard({
               <p className={currentSectionLabelClasses}>{t('aiProviders.sections.model')}</p>
               {typeInfo?.showBaseUrl && (
                 <div className="space-y-1.5">
-                  <Label className={currentLabelClasses}>{t('aiProviders.dialog.baseUrl')}</Label>
+                  <Label htmlFor={`${account.id}-base-url`} className={currentLabelClasses}>{t('aiProviders.dialog.baseUrl')}</Label>
                   <Input
+                    id={`${account.id}-base-url`}
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
                     placeholder={getProtocolBaseUrlPlaceholder(apiProtocol)}
@@ -545,8 +558,9 @@ function ProviderCard({
               )}
               {showModelIdField && (
                 <div className="space-y-1.5 pt-2">
-                  <Label className={currentLabelClasses}>{t('aiProviders.dialog.modelId')}</Label>
+                  <Label htmlFor={`${account.id}-model-id`} className={currentLabelClasses}>{t('aiProviders.dialog.modelId')}</Label>
                   <Input
+                    id={`${account.id}-model-id`}
                     value={modelId}
                     onChange={(e) => setModelId(e.target.value)}
                     placeholder={typeInfo?.modelIdPlaceholder || 'provider/model-id'}
@@ -735,11 +749,15 @@ function AddProviderDialog({
   devModeUnlocked,
 }: AddProviderDialogProps) {
   const { t, i18n } = useTranslation('settings');
-  const [selectedType, setSelectedType] = useState<ProviderType | null>('custom' as ProviderType);
-  const [name, setName] = useState('魔芋');
+  const moyuMode = isMoyuMode();
+  const moyuTypeInfo = moyuMode
+    ? PROVIDER_TYPE_INFO.find((provider) => provider.id === 'custom')
+    : undefined;
+  const [selectedType, setSelectedType] = useState<ProviderType | null>(moyuMode ? ('custom' as ProviderType) : null);
+  const [name, setName] = useState(moyuMode ? '魔芋' : '');
   const [apiKey, setApiKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState('https://www.moyu.info');
-  const [modelId, setModelId] = useState('');
+  const [baseUrl, setBaseUrl] = useState(moyuTypeInfo?.defaultBaseUrl || '');
+  const [modelId, setModelId] = useState(moyuTypeInfo?.defaultModelId || '');
   const apiProtocol: ProviderAccount['apiProtocol'] = 'openai-completions';
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -782,8 +800,10 @@ function AddProviderDialog({
       }
       if (requiresKey && apiKey) {
         const result = await onValidateKey(selectedType, apiKey, {
-          baseUrl: 'https://www.moyu.info',
-          apiProtocol: 'openai-completions',
+          baseUrl: baseUrl.trim() || undefined,
+          apiProtocol: (selectedType === 'custom' || selectedType === 'ollama')
+            ? apiProtocol
+            : undefined,
         });
         if (!result.valid) {
           setValidationError(result.error || t('aiProviders.toast.invalidKey'));
@@ -801,13 +821,17 @@ function AddProviderDialog({
 
       await onAdd(
         selectedType,
-        name || '魔芋',
+        name || (selectedType === 'custom'
+          ? getCustomProviderLabel(typeInfo?.name || selectedType)
+          : (typeInfo?.name || selectedType)),
         apiKey.trim(),
         {
-          baseUrl: 'https://www.moyu.info',
-          apiProtocol: 'openai-completions',
+          baseUrl: baseUrl.trim() || undefined,
+          apiProtocol: (selectedType === 'custom' || selectedType === 'ollama')
+            ? apiProtocol
+            : undefined,
           model: resolveProviderModelForSave(typeInfo, modelId, devModeUnlocked),
-          authMode: 'api_key',
+          authMode: selectedType === 'ollama' ? 'local' : 'api_key',
         }
       );
     } catch {
@@ -842,7 +866,7 @@ function AddProviderDialog({
                   key={type.id}
                   onClick={() => {
                     setSelectedType(type.id);
-                    setName(type.id === 'custom' ? '魔芋' : type.name);
+                    setName(type.id === 'custom' ? getCustomProviderLabel(type.name) : type.name);
                     setBaseUrl(type.defaultBaseUrl || '');
                     setModelId(type.defaultModelId || '');
                   }}
@@ -855,7 +879,7 @@ function AddProviderDialog({
                       <span className="text-2xl">{type.icon}</span>
                     )}
                   </div>
-                  <p className="font-medium text-[13px]">{type.id === 'custom' ? '魔芋' : type.name}</p>
+                  <p className="font-medium text-[13px]">{type.id === 'custom' ? getCustomProviderLabel(type.name) : type.name}</p>
                 </button>
               ))}
             </div>
@@ -870,8 +894,11 @@ function AddProviderDialog({
                   )}
                 </div>
                 <div>
-                  <p className="font-semibold text-[15px]">{'魔芋'}</p>
-                  {/* 魔芋专属版：隐藏切换提供商按钮 */}
+                  <p className="font-semibold text-[15px]">
+                    {selectedType === 'custom'
+                      ? getCustomProviderLabel(typeInfo?.name || 'Custom')
+                      : typeInfo?.name}
+                  </p>
                   {providerDocsUrl && (
                     <>
                       <span className="mx-2 text-foreground/20">|</span>
@@ -892,12 +919,14 @@ function AddProviderDialog({
               <div className="space-y-6 bg-transparent p-0">
                 <div className="space-y-2.5">
                   <Label htmlFor="name" className={labelClasses}>{t('aiProviders.dialog.displayName')}</Label>
-                  <Input
-                    id="name"
-                    placeholder={typeInfo?.id === 'custom' ? '魔芋' : typeInfo?.name}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={inputClasses}
+                    <Input
+                      id="name"
+                      placeholder={typeInfo?.id === 'custom'
+                        ? getCustomProviderLabel(typeInfo?.name || 'Custom')
+                        : typeInfo?.name}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className={inputClasses}
                   />
                 </div>
 

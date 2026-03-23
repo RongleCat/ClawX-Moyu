@@ -1,10 +1,10 @@
 #!/usr/bin/env zx
 
 import 'zx/globals';
+import { getUvDownloadUrls } from './bundled-binary-config.mjs';
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const UV_VERSION = '0.10.0';
-const BASE_URL = `https://github.com/astral-sh/uv/releases/download/${UV_VERSION}`;
 const OUTPUT_BASE = path.join(ROOT_DIR, 'resources', 'bin');
 
 // Mapping Node platforms/archs to uv release naming
@@ -52,7 +52,7 @@ async function setupTarget(id) {
   const targetDir = path.join(OUTPUT_BASE, id);
   const tempDir = path.join(ROOT_DIR, 'temp_uv_extract');
   const archivePath = path.join(ROOT_DIR, target.filename);
-  const downloadUrl = `${BASE_URL}/${target.filename}`;
+  const downloadUrls = getUvDownloadUrls(UV_VERSION, target.filename);
 
   echo(chalk.blue`\n📦 Setting up uv for ${id}...`);
 
@@ -64,11 +64,28 @@ async function setupTarget(id) {
 
   try {
     // Download
-    echo`⬇️ Downloading: ${downloadUrl}`;
-    const response = await fetch(downloadUrl);
-    if (!response.ok) throw new Error(`Failed to download: ${response.statusText}`);
-    const buffer = await response.arrayBuffer();
-    await fs.writeFile(archivePath, Buffer.from(buffer));
+    let downloadedFrom = null;
+    let lastError = null;
+    for (const downloadUrl of downloadUrls) {
+      echo`⬇️ Downloading: ${downloadUrl}`;
+      try {
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        const buffer = await response.arrayBuffer();
+        await fs.writeFile(archivePath, Buffer.from(buffer));
+        downloadedFrom = downloadUrl;
+        break;
+      } catch (error) {
+        lastError = error;
+        echo(chalk.yellow`⚠️ Download failed: ${String(error)}`);
+      }
+    }
+    if (!downloadedFrom) {
+      throw new Error(`Failed to download ${target.filename} from all sources. Last error: ${String(lastError)}`);
+    }
+    echo(chalk.green`✅ Downloaded from: ${downloadedFrom}`);
 
     // Extract
     echo`📂 Extracting...`;

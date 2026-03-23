@@ -13,6 +13,7 @@ This directory contains the application icons for all supported platforms.
 | `16x16.png` - `512x512.png` | Linux | PNG set for Linux |
 | `tray-icon-template.svg` | Source | macOS tray icon template source |
 | `tray-icon-Template.png` | macOS | 22x22 status bar icon (note: "Template" suffix required) |
+| `tray-icon-Template@2x.png` | macOS Retina | 44x44 high-DPI status bar icon |
 
 ## Generating Icons
 
@@ -64,7 +65,7 @@ If you prefer to generate icons manually:
 
 ### macOS Tray Icon
 - **Format**: Single-color (black) on transparent background
-- **Size**: 22x22 pixels (system automatically handles @2x retina)
+- **Size**: 22x22 pixels plus 44x44 `@2x` retina variant
 - **Naming**: Must end with "Template.png" for automatic template mode
 - **Design**: Simplified monochrome version of main icon (OneKeyClaw logo)
 - **Source**: Use `tray-icon-template.svg` as the source

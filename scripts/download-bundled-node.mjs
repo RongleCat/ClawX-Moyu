@@ -1,10 +1,10 @@
 #!/usr/bin/env zx
 
 import 'zx/globals';
+import { getNodeDownloadUrls } from './bundled-binary-config.mjs';
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const NODE_VERSION = '22.16.0';
-const BASE_URL = `https://nodejs.org/dist/v${NODE_VERSION}`;
 const OUTPUT_BASE = path.join(ROOT_DIR, 'resources', 'bin');
 
 const TARGETS = {
@@ -32,7 +32,7 @@ async function setupTarget(id) {
   const targetDir = path.join(OUTPUT_BASE, id);
   const tempDir = path.join(ROOT_DIR, 'temp_node_extract');
   const archivePath = path.join(ROOT_DIR, target.filename);
-  const downloadUrl = `${BASE_URL}/${target.filename}`;
+  const downloadUrls = getNodeDownloadUrls(NODE_VERSION, target.filename);
 
   echo(chalk.blue`\n📦 Setting up Node.js for ${id}...`);
 
@@ -47,11 +47,28 @@ async function setupTarget(id) {
   await fs.ensureDir(tempDir);
 
   try {
-    echo`⬇️ Downloading: ${downloadUrl}`;
-    const response = await fetch(downloadUrl);
-    if (!response.ok) throw new Error(`Failed to download: ${response.statusText}`);
-    const buffer = await response.arrayBuffer();
-    await fs.writeFile(archivePath, Buffer.from(buffer));
+    let downloadedFrom = null;
+    let lastError = null;
+    for (const downloadUrl of downloadUrls) {
+      echo`⬇️ Downloading: ${downloadUrl}`;
+      try {
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        const buffer = await response.arrayBuffer();
+        await fs.writeFile(archivePath, Buffer.from(buffer));
+        downloadedFrom = downloadUrl;
+        break;
+      } catch (error) {
+        lastError = error;
+        echo(chalk.yellow`⚠️ Download failed: ${String(error)}`);
+      }
+    }
+    if (!downloadedFrom) {
+      throw new Error(`Failed to download ${target.filename} from all sources. Last error: ${String(lastError)}`);
+    }
+    echo(chalk.green`✅ Downloaded from: ${downloadedFrom}`);
 
     echo`📂 Extracting...`;
     if (os.platform() === 'win32') {

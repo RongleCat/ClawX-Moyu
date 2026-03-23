@@ -83,14 +83,17 @@ try {
   echo`📍 Generating macOS tray icon template...`;
   const TRAY_SVG_SOURCE = path.join(ICONS_DIR, 'tray-icon-template.svg');
 
-  if (fs.existsSync(path.join(ICONS_DIR, 'tray-icon-Template.png'))) {
-    echo`  ✅ Keeping existing tray-icon-Template.png`;
-  } else if (fs.existsSync(TRAY_SVG_SOURCE)) {
+  if (fs.existsSync(TRAY_SVG_SOURCE)) {
     await sharp(TRAY_SVG_SOURCE)
       .resize(22, 22)
       .png()
       .toFile(path.join(ICONS_DIR, 'tray-icon-Template.png'));
-    echo`  ✅ Created tray-icon-Template.png (22x22)`;
+
+    await sharp(TRAY_SVG_SOURCE)
+      .resize(44, 44)
+      .png()
+      .toFile(path.join(ICONS_DIR, 'tray-icon-Template@2x.png'));
+    echo`  ✅ Created tray-icon-Template.png (22x22) and tray-icon-Template@2x.png (44x44)`;
   } else {
     echo`  ⚠️  tray-icon-template.svg not found, skipping tray icon generation`;
   }

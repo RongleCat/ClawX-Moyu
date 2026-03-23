@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -106,6 +107,7 @@ import {
   hasConfiguredCredentials,
   pickPreferredAccount,
 } from '@/lib/provider-accounts';
+import { isMoyuMode } from '@/lib/provider-mode';
 import clawxIcon from '@/assets/logo.png';
 
 // Use the shared provider registry for setup providers
@@ -702,7 +704,7 @@ interface ProviderContentProps {
   onConfiguredChange: (configured: boolean) => void;
 }
 
-function ProviderContent({
+export function ProviderContent({
   providers,
   selectedProvider,
   onSelectProvider,
@@ -711,16 +713,18 @@ function ProviderContent({
   onConfiguredChange,
 }: ProviderContentProps) {
   const { t } = useTranslation(['setup', 'settings']);
+  const moyuMode = isMoyuMode();
   const devModeUnlocked = useSettingsStore((state) => state.devModeUnlocked);
   const [showKey, setShowKey] = useState(false);
   const [validating, setValidating] = useState(false);
   const [keyValid, setKeyValid] = useState<boolean | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [baseUrl, setBaseUrl] = useState('https://www.moyu.info');
+  const [baseUrl, setBaseUrl] = useState('');
   const [modelId, setModelId] = useState('');
   const [apiProtocol, setApiProtocol] = useState<ProviderAccount['apiProtocol']>('openai-completions');
+  const [providerMenuOpen, setProviderMenuOpen] = useState(false);
+  const providerMenuRef = useRef<HTMLDivElement | null>(null);
 
-  // 魔芋专属版：自动选中唯一的提供商
   useEffect(() => {
     if (!selectedProvider && providers.length === 1) {
       onSelectProvider(providers[0].id);
@@ -805,6 +809,29 @@ function ProviderContent({
     return () => { cancelled = true; };
   }, [onApiKeyChange, selectedProvider, providers]);
 
+  useEffect(() => {
+    if (!providerMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (providerMenuRef.current && !providerMenuRef.current.contains(event.target as Node)) {
+        setProviderMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setProviderMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [providerMenuOpen]);
+
   const selectedProviderData = providers.find((p) => p.id === selectedProvider);
   const showBaseUrlField = selectedProviderData?.showBaseUrl ?? false;
   const showModelIdField = shouldShowProviderModelId(selectedProviderData, devModeUnlocked);
@@ -858,10 +885,14 @@ function ProviderContent({
       const accountPayload: ProviderAccount = {
         id: accountIdForSave,
         vendorId: selectedProvider as ProviderType,
-        label: '魔芋',
-        authMode: 'api_key',
-        baseUrl: 'https://www.moyu.info',
-        apiProtocol: 'openai-completions',
+        label: selectedProvider === 'custom'
+          ? (moyuMode ? '魔芋' : t('settings:aiProviders.custom'))
+          : (selectedProviderData?.name || selectedProvider),
+        authMode: selectedProvider === 'ollama' ? 'local' : 'api_key',
+        baseUrl: baseUrl.trim() || undefined,
+        apiProtocol: (selectedProvider === 'custom' || selectedProvider === 'ollama')
+          ? apiProtocol
+          : undefined,
         model: effectiveModelId,
         enabled: true,
         isDefault: false,
@@ -927,18 +958,106 @@ function ProviderContent({
     && (isApiKeyRequired ? apiKey.length > 0 : true)
     && (showModelIdField ? modelId.trim().length > 0 : true);
 
+  const selectedProviderLabel = selectedProviderData
+    ? `${selectedProviderData.id === 'custom'
+      ? (moyuMode ? '魔芋' : t('settings:aiProviders.custom'))
+      : selectedProviderData.name}${selectedProviderData.model ? ` — ${selectedProviderData.model}` : ''}`
+    : t('provider.selectPlaceholder');
+
+  const handleSelectProvider = (providerId: string) => {
+    onSelectProvider(providerId);
+    setSelectedAccountId(null);
+    onConfiguredChange(false);
+    onApiKeyChange('');
+    setKeyValid(null);
+    setProviderMenuOpen(false);
+  };
+
   return (
     <div className="space-y-6">
-      {/* 魔芋专属版：固定提供商标识 */}
       <div className="space-y-2">
         <Label>{t('provider.label')}</Label>
-        <div className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm flex items-center gap-2">
-          <span className="text-sm leading-none shrink-0">{selectedProviderData?.icon || '🧿'}</span>
-          <span className="truncate">{selectedProviderData?.name || '魔芋'} — {selectedProviderData?.model || 'Multi-Model'}</span>
+        <div className="relative" ref={providerMenuRef}>
+          <button
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded={providerMenuOpen}
+            onClick={() => setProviderMenuOpen((open) => !open)}
+            className={cn(
+              'w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
+              'flex items-center justify-between gap-2',
+              'focus:outline-none focus:ring-2 focus:ring-ring'
+            )}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {selectedProvider && selectedProviderData ? (
+                getProviderIconUrl(selectedProviderData.id) ? (
+                  <img
+                    src={getProviderIconUrl(selectedProviderData.id)}
+                    alt={selectedProviderData.name}
+                    className={cn('h-4 w-4 shrink-0', shouldInvertInDark(selectedProviderData.id) && 'dark:invert')}
+                  />
+                ) : (
+                  <span className="text-sm leading-none shrink-0">{selectedProviderData.icon}</span>
+                )
+              ) : (
+                <span className="text-xs text-muted-foreground shrink-0">—</span>
+              )}
+              <span className={cn('truncate text-left', !selectedProvider && 'text-muted-foreground')}>
+                {selectedProviderLabel}
+              </span>
+            </div>
+            <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform', providerMenuOpen && 'rotate-180')} />
+          </button>
+
+          {providerMenuOpen && (
+            <div
+              role="listbox"
+              className="absolute z-20 mt-1 w-full rounded-md border border-border bg-popover shadow-md max-h-64 overflow-auto"
+            >
+              {providers.map((provider) => {
+                const iconUrl = getProviderIconUrl(provider.id);
+                const isSelected = selectedProvider === provider.id;
+
+                return (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => handleSelectProvider(provider.id)}
+                    className={cn(
+                      'w-full px-3 py-2 text-left text-sm flex items-center justify-between gap-2',
+                      'hover:bg-accent transition-colors',
+                      isSelected && 'bg-accent/60'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {iconUrl ? (
+                        <img
+                          src={iconUrl}
+                          alt={provider.name}
+                          className={cn('h-4 w-4 shrink-0', shouldInvertInDark(provider.id) && 'dark:invert')}
+                        />
+                      ) : (
+                        <span className="text-sm leading-none shrink-0">{provider.icon}</span>
+                      )}
+                      <span className="truncate">
+                        {provider.id === 'custom'
+                          ? (moyuMode ? '魔芋' : t('settings:aiProviders.custom'))
+                          : provider.name}
+                        {provider.model ? ` — ${provider.model}` : ''}
+                      </span>
+                    </div>
+                    {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Dynamic config fields based on selected provider */}
       {selectedProvider && (
         <motion.div
           key={selectedProvider}
@@ -987,9 +1106,6 @@ function ProviderContent({
             </div>
           )}
 
-          {/* 魔芋专属版：隐藏 protocol 选择器和 OAuth 切换 */}
-
-          {/* API Key field — 魔芋专属版：始终显示 */}
           {requiresKey && (
             <div className="space-y-2">
               <Label htmlFor="apiKey">{t('provider.apiKey')}</Label>
@@ -1018,9 +1134,6 @@ function ProviderContent({
             </div>
           )}
 
-          {/* 魔芋专属版：OAuth 流程已隐藏 */}
-
-          {/* Validate & Save */}
           <Button
             onClick={handleValidateAndSave}
             disabled={!canSubmit || validating}

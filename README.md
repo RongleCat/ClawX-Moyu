@@ -42,6 +42,7 @@
 Whether you're automating workflows, managing AI-powered channels, or scheduling intelligent tasks, OneKeyClaw provides the interface you need to harness AI agents effectively.
 
 OneKeyClaw-Moyu comes pre-configured for the Moyu provider and natively supports Windows as well as multi-language settings. Advanced provider details remain available through **Settings → Advanced → Developer Mode** when needed.
+Set `VITE_PROVIDER_MODE=moyu` in development or build environments to show only the Moyu provider in the onboarding/settings UI while keeping full Moyu account model configuration (`baseUrl`, `modelId`, multiple accounts).
 
 ---
 ## Screenshot
@@ -119,7 +120,7 @@ Environment variables for bundled search skills:
 - `find-skills` and `self-improving-agent` do not require API keys
 
 ### 🔐 Secure Provider Integration
-OneKeyClaw-Moyu is preconfigured for the Moyu provider. Your API key is stored securely in your system's native keychain, while advanced provider tuning remains available through Developer Mode.
+OneKeyClaw-Moyu is preconfigured for the Moyu provider. Your API key is stored securely in your system's native keychain, while advanced provider tuning remains available through Developer Mode. Without `VITE_PROVIDER_MODE=moyu`, the frontend falls back to the standard multi-provider setup UI.
 
 ### 🌙 Adaptive Theming
 Light mode, dark mode, or system-synchronized themes. OneKeyClaw adapts to your preferences automatically.
@@ -156,12 +157,18 @@ pnpm run init
 # Start in development mode
 pnpm dev
 ```
+
+To test the Moyu-only frontend flow locally:
+
+```bash
+VITE_PROVIDER_MODE=moyu pnpm dev
+```
 ### First Launch
 
 When you launch OneKeyClaw for the first time, the **Setup Wizard** will guide you through:
 
 1. **Language & Region** – Configure your preferred locale
-2. **AI Provider** – Enter your Moyu API key in the preconfigured provider flow
+2. **AI Provider** – Configure providers in the guided flow, or lock the UI to Moyu-only mode with `VITE_PROVIDER_MODE=moyu`
 3. **Skill Bundles** – Select pre-configured skills for common use cases
 4. **Verification** – Test your configuration before entering the main interface
 
@@ -309,7 +316,7 @@ Chain multiple skills together to create sophisticated automation pipelines. Pro
 
 ```bash
 # Development
-pnpm run init             # Install dependencies + download uv
+pnpm run init             # Install dependencies + prepare bundled binaries for the current platform
 pnpm dev                  # Start with hot reload
 
 # Quality
@@ -327,6 +334,9 @@ pnpm package:mac          # Package for macOS
 pnpm package:win          # Package for Windows
 pnpm package:linux        # Package for Linux
 ```
+
+Packaging commands now auto-prepare bundled binaries before `electron-builder` runs, so packaged apps include `uv` on every platform and `node.exe` on Windows. Local development prefers CN-friendly mirror endpoints for `uv`/`node` downloads and automatically falls back to official sources if a mirror is unavailable.
+
 ### Tech Stack
 
 | Layer | Technology |
